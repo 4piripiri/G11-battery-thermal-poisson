@@ -2,10 +2,27 @@ import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
 import math
+
+# =========================================================
+# LOAD DATA
+# =========================================================
+
 df = pd.read_csv("B0005_thermal_events.csv")
 
 df = df.sort_values(["cycle", "time"])
 
+# Use the same threshold as the main project
+THRESHOLD = 40.0
+
+# Recalculate thermal events using the project threshold
+df["thermal_event"] = (
+    df["temperature"] > THRESHOLD
+).astype(int)
+
+
+# =========================================================
+# CYCLE-WISE DATA
+# =========================================================
 
 cycle_data = df.groupby("cycle").agg(
     events=("thermal_event", "sum"),
@@ -45,16 +62,15 @@ plt.show()
 counts = cycle_data["events"].to_numpy()
 
 lam = np.mean(counts)
+variance = np.var(counts, ddof=1)
+dispersion = variance / lam
 
 print("\nPOISSON ANALYSIS")
 print("----------------")
 print(f"Number of cycles = {len(counts)}")
 print(f"Mean λ = {lam:.4f}")
-print(f"Variance = {np.var(counts, ddof=1):.4f}")
-print(
-    f"Dispersion index = "
-    f"{np.var(counts, ddof=1) / lam:.4f}"
-)
+print(f"Variance = {variance:.4f}")
+print(f"Dispersion index = {dispersion:.4f}")
 
 
 # =========================================================
@@ -65,6 +81,7 @@ max_k = int(counts.max())
 
 k_values = np.arange(0, max_k + 1)
 
+# Observed number of cycles for each event count
 observed = np.array([
     np.sum(counts == k)
     for k in k_values
@@ -76,7 +93,7 @@ poisson_probability = np.array([
     for k in k_values
 ])
 
-# Convert probabilities to expected number of cycles
+# Expected number of cycles
 expected = poisson_probability * len(counts)
 
 
@@ -102,8 +119,7 @@ plt.xlabel("Thermal Event Readings per Cycle")
 plt.ylabel("Number of Cycles")
 
 plt.title(
-    f"Observed vs Poisson Distribution "
-    f"(λ = {lam:.2f})"
+    f"Observed vs Poisson Distribution (λ = {lam:.2f})"
 )
 
 plt.legend()
@@ -116,10 +132,10 @@ plt.show()
 
 
 # =========================================================
-# EXPONENTIAL DATA
+# EXPONENTIAL MODEL
 # =========================================================
 
-# Find the first thermal event in each cycle
+# Find the FIRST thermal event in each cycle
 first_events = (
     df[df["thermal_event"] == 1]
     .groupby("cycle")["time"]
@@ -128,12 +144,17 @@ first_events = (
 
 waiting_times = first_events.to_numpy()
 
-lambda_exp = 1 / np.mean(waiting_times)
+# Exponential rate
+mean_waiting_time = np.mean(waiting_times)
+lambda_exp = 1 / mean_waiting_time
 
 print("\nEXPONENTIAL ANALYSIS")
 print("--------------------")
 print(f"Cycles with an event = {len(waiting_times)}")
-print(f"Mean first-event time = {np.mean(waiting_times):.2f} seconds")
+print(
+    f"Mean first-event time = "
+    f"{mean_waiting_time:.2f} seconds"
+)
 print(f"λ = {lambda_exp:.6f} per second")
 
 
@@ -143,6 +164,7 @@ print(f"λ = {lambda_exp:.6f} per second")
 
 plt.figure(figsize=(10, 5))
 
+# Observed waiting-time distribution
 plt.hist(
     waiting_times,
     bins=15,
@@ -151,8 +173,7 @@ plt.hist(
     label="Observed"
 )
 
-
-# Exponential curve
+# Exponential probability density function
 t = np.linspace(
     0,
     waiting_times.max(),
@@ -160,8 +181,7 @@ t = np.linspace(
 )
 
 exponential_pdf = (
-    lambda_exp *
-    np.exp(-lambda_exp * t)
+    lambda_exp * np.exp(-lambda_exp * t)
 )
 
 plt.plot(

@@ -124,8 +124,10 @@ def chi_square_gof(rows, estimated_params=1):
 # ---------- Engineering / AI decision ----------
 def thermal_risk_decision(lam, k_threshold=3, p_threshold=0.25):
     """
-    Rule used by the monitoring 'AI':
-      if P(X >= k_threshold events in a week) > p_threshold  ->  HIGH RISK
+    Probability-based engineering decision rule:
+      if P(X >= k_threshold events in a discharge cycle)
+      > p_threshold -> HIGH RISK
+
     Returns (status, probability).
     """
     p = poisson_sf_ge(k_threshold, lam)

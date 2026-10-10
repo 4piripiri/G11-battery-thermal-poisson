@@ -1,7 +1,10 @@
-"""Turn NASA POWER daily T2M_MAX into Poisson (weekly counts) and
-exponential (gaps between events) data."""
-import pandas as pd
+"""Prepare environmental and battery data for Poisson and Exponential analysis.
 
+For battery data:
+- Poisson: thermal-event readings per discharge cycle.
+- Exponential: time from cycle start to the first thermal event.
+"""
+import pandas as pd
 
 def load_daily(path_or_buffer):
     df = pd.read_csv(path_or_buffer, parse_dates=["date"])
@@ -15,7 +18,6 @@ def mark_events(df, threshold=40.0, months=(4, 5, 6)):
     d["year"] = d["date"].dt.year
     d["event"] = d["tmax"] > threshold
     return d
-
 
 def weekly_counts(d, months=(4, 5, 6)):
     """Events per full 7-day week, counted from the 1st day of the first month."""

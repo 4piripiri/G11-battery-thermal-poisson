@@ -25,7 +25,7 @@ st.caption("IA-1 STAT-AI Engineering Challenge | Group 11 | "
 
 # ------------------------------------------------------------------ sidebar
 st.sidebar.header("1. Input / Data")
-files = sorted(glob.glob("data/*.csv"))
+files = sorted(glob.glob("*.csv"))
 default = next((i for i, f in enumerate(files) if "B0005" in f), 0)
 choice = st.sidebar.selectbox("Dataset", files + ["Upload my own CSV"], index=default)
 if choice == "Upload my own CSV":
