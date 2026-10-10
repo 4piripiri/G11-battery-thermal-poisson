@@ -1,6 +1,6 @@
 """Checks the code against the hand-calculated worked example (lambda = 1.8)."""
 import math
-from src.stats_core import (poisson_pmf, poisson_sf_ge, exp_cdf, exp_survival,
+from stats_core import (poisson_pmf, poisson_sf_ge, exp_cdf, exp_survival,
                             exp_mean, estimate_lambda, observed_vs_expected,
                             chi_square_gof, thermal_risk_decision)
 

@@ -1,6 +1,5 @@
 import pandas as pd
-from src import data_prep as dp
-
+import data_prep as dp
 
 def _toy():
     return pd.DataFrame({

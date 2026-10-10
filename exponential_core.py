@@ -8,13 +8,13 @@ counts = df.groupby("cycle")["thermal_event"].sum()
 
 high = []
 for c in counts.index:
-if counts[c] >= 18:
-high.append(c)
+    if counts[c] >= 18:
+        high.append(c)
 
 # gaps between high cycles
 gaps = []
 for i in range(1, len(high)):
-gaps.append(high[i] - high[i-1])
+    gaps.append(high[i] - high[i-1])
 
 mean_gap = sum(gaps) / len(gaps)
 lam = 1 / mean_gap
