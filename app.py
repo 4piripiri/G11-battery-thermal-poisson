@@ -14,9 +14,8 @@ import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
 import streamlit as st
-
-from src import data_prep as dp
-from src import stats_core as sc
+import data_prep as dp
+import stats_core as sc
 
 st.set_page_config(page_title="Battery Thermal Events - Poisson & Exponential",
                    layout="wide")
