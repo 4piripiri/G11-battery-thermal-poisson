@@ -28,6 +28,13 @@ import diagnostics
 # -----------------------------------------------------------------------------
 # 1. Page Configuration & Theme
 # -----------------------------------------------------------------------------
+st.markdown("""
+<style>
+    .block-container {
+        padding-top: 1rem;
+    }
+</style>
+""", unsafe_allow_html=True)
 st.set_page_config(
     page_title="Battery Thermal Anomaly Simulator | Applied Risk Screening",
     page_icon="⚡",
@@ -146,7 +153,13 @@ st.markdown(
 # 2. Sidebar Interactive Inputs & Data Ingestion
 # -----------------------------------------------------------------------------
 DEFAULT_CSV = os.path.join(os.path.dirname(os.path.abspath(__file__)), "B0005_thermal_events.csv")
-
+st.markdown("""
+<style>
+    .block-container {
+        padding-top: 1rem;
+    }
+</style>
+""", unsafe_allow_html=True)
 with st.sidebar:
     st.title("⚡ Control Panel")
     st.markdown("Stochastic risk screening using Poisson & Exponential distributions.")
