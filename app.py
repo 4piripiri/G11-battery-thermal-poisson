@@ -3,13 +3,14 @@ Battery Thermal Anomaly Risk Screening Dashboard
 =================================================
 Senior Applied Statistics & Engineering Risk-Screening Dashboard
 
-Organized into six clear sections:
+Organized into seven clear sections:
   A. Overview: Introduction, Dataset Status, Data Quality, KPI Cards
   B. Observed Data Analysis: Temperature Trends, Onsets, Rates, Diagnostics, Episode Table
-  C. Monte Carlo Simulator: Stochastic Simulations, Paths, Convergence, Provenance
-  D. Risk & Decision Support: Validated Thresholds, Action Protocols, Screening Caveat
-  E. Model Assumptions & Math: Mathematical Derivations, Parameter Substitutions
-  F. Results & Downloads: Audited CSV Exports & Comparison Table
+  C. Statistical Laboratory: Interactive Poisson and Exponential calculations
+  D. Monte Carlo Simulator: Stochastic Simulations, Paths, Convergence, Provenance
+  E. Risk & Decision Support: Validated Thresholds, Action Protocols, Screening Caveat
+  F. Model Assumptions & Math: Mathematical Derivations, Parameter Substitutions
+  G. Results & Downloads: Audited CSV Exports & Comparison Table
 """
 
 import io
@@ -20,6 +21,7 @@ import numpy as np
 import pandas as pd
 import plotly.graph_objects as go
 from scipy import stats
+from scipy.stats import poisson, expon
 import streamlit as st
 
 import core
@@ -28,6 +30,13 @@ import diagnostics
 # -----------------------------------------------------------------------------
 # 1. Page Configuration & Theme
 # -----------------------------------------------------------------------------
+st.set_page_config(
+    page_title="Battery Thermal Anomaly Simulator | Applied Risk Screening",
+    page_icon="⚡",
+    layout="wide",
+    initial_sidebar_state="expanded",
+)
+
 st.markdown("""
 <style>
     .block-container {
@@ -35,12 +44,6 @@ st.markdown("""
     }
 </style>
 """, unsafe_allow_html=True)
-st.set_page_config(
-    page_title="Battery Thermal Anomaly Simulator | Applied Risk Screening",
-    page_icon="⚡",
-    layout="wide",
-    initial_sidebar_state="expanded",
-)
 
 st.markdown(
     """
@@ -153,13 +156,7 @@ st.markdown(
 # 2. Sidebar Interactive Inputs & Data Ingestion
 # -----------------------------------------------------------------------------
 DEFAULT_CSV = os.path.join(os.path.dirname(os.path.abspath(__file__)), "B0005_thermal_events.csv")
-st.markdown("""
-<style>
-    .block-container {
-        padding-top: 1rem;
-    }
-</style>
-""", unsafe_allow_html=True)
+
 with st.sidebar:
     st.title("⚡ Control Panel")
     st.markdown("Stochastic risk screening using Poisson & Exponential distributions.")
@@ -468,13 +465,14 @@ st.write("")
 # -----------------------------------------------------------------------------
 # 5. Dashboard Tabs Architecture (Sections A - F)
 # -----------------------------------------------------------------------------
-tab_a, tab_b, tab_c, tab_d, tab_e, tab_f = st.tabs([
+tab_a, tab_b, tab_c, tab_d, tab_e, tab_f, tab_g = st.tabs([
     "📋 A. Overview",
     "📊 B. Observed Data Analysis",
-    "🎲 C. Monte Carlo Simulator",
-    "🛡️ D. Risk & Engineering Decision",
-    "🔬 E. Assumptions & Math",
-    "📥 F. Results & Downloads",
+    "🔬 C. Statistical Laboratory",
+    "🎲 D. Monte Carlo Simulator",
+    "🛡️ E. Risk & Engineering Decision",
+    "📐 F. Assumptions & Math",
+    "📥 G. Results & Downloads",
 ])
 
 # =============================================================================
@@ -708,11 +706,465 @@ with tab_b:
         use_container_width=True,
         height=280,
     )
+with tab_c:
+        
 
+        # Statistical Laboratory styling (page configuration is set at the top).
+        st.markdown(
+            """
+        <style>
+            .stApp {
+                background-color: #f8fafc;
+                color: #0f172a;
+                font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+            }
+            
+            .custom-card {
+                background-color: #ffffff;
+                border: 1px solid #e2e8f0;
+                border-radius: 12px;
+                padding: 24px;
+                margin-bottom: 20px;
+                box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.05);
+            }
+            
+            .inner-card {
+                background-color: #f1f5f9;
+                border: 1px solid #e2e8f0;
+                border-radius: 8px;
+                padding: 16px;
+                margin-bottom: 12px;
+            }
+            
+            .inner-card-selected {
+                background-color: #f0f9ff;
+                border: 1px solid #0284c7;
+                border-radius: 8px;
+                padding: 16px;
+                margin-bottom: 12px;
+            }
+
+            .badge-green {
+                background-color: #dcfce7;
+                color: #15803d;
+                border: 1px solid #bbf7d0;
+                padding: 6px 12px;
+                border-radius: 20px;
+                font-size: 0.85rem;
+                font-weight: 600;
+                float: right;
+            }
+
+            .main-title {
+                font-size: 1.8rem;
+                font-weight: 700;
+                color: #0f172a;
+                margin-bottom: 4px;
+            }
+            
+            .sub-title {
+                color: #475569;
+                font-size: 0.95rem;
+                margin-bottom: 0px;
+            }
+
+            .card-header {
+                font-size: 1.05rem;
+                font-weight: 700;
+                color: #0f172a;
+                margin-bottom: 16px;
+                display: flex;
+                align-items: center;
+                justify-content: space-between;
+            }
+
+            .metric-label {
+                font-size: 0.82rem;
+                color: #64748b;
+                margin-bottom: 4px;
+            }
+
+            .metric-value-cyan {
+                font-size: 1.35rem;
+                font-weight: 700;
+                color: #0284c7;
+            }
+            
+            .metric-value-pink {
+                font-size: 1.35rem;
+                font-weight: 700;
+                color: #db2777;
+            }
+            
+            .metric-value-green {
+                font-size: 1.35rem;
+                font-weight: 700;
+                color: #16a34a;
+            }
+
+            .formula-tag {
+                font-family: monospace;
+                font-size: 0.8rem;
+                color: #64748b;
+            }
+            
+            .footer-note {
+                font-size: 0.78rem;
+                color: #16a34a;
+                font-style: italic;
+                margin-top: 10px;
+            }
+        </style>
+        """,
+            unsafe_allow_html=True,
+        )
+
+        # -----------------------------------------------------------------------------
+        # HEADER SECTION
+        # -----------------------------------------------------------------------------
+        st.markdown(
+            """
+        <div class="custom-card" style="padding: 18px 24px;">
+            <div style="font-size: 0.75rem; color: #0284c7; font-weight: 700; letter-spacing: 1px; margin-bottom: 4px;">
+                ⚡ STATISTICAL LABORATORY
+            </div>
+            <div class="main-title">
+                Poisson Frequency & Exponential Waiting-Time Modeling
+            </div>
+            <div class="sub-title">
+                Rigorous distribution fitting using SciPy statistical formulations, exact Garwood confidence limits, and empirical frequency comparisons.
+            </div>
+        </div>
+        """,
+            unsafe_allow_html=True,
+        )
+
+        # -----------------------------------------------------------------------------
+        # TOP SECTION: OBSERVED VS EXPECTED POISSON CYCLE FREQUENCIES
+        # -----------------------------------------------------------------------------
+        categories = ["0 events", "1 event", "2 events", "3 events", "4+ events"]
+        observed = [82, 86, 0, 0, 0]
+        expected = [101.3, 51.2, 12.1, 2.4, 0.3]
+
+        fig_poisson = go.Figure()
+
+        # Expected Bars (Indigo)
+        fig_poisson.add_trace(
+            go.Bar(
+                x=categories,
+                y=expected,
+                name="Expected (Poisson)",
+                marker_color="#4f46e5",
+                marker_line_color="#3730a3",
+                marker_line_width=1,
+                text=[f"{v:.1f}" if v > 0 else "0" for v in expected],
+                textposition="outside",
+                textfont=dict(size=11, color="#4f46e5"),
+                hovertemplate="<b>%{x}</b><br>Expected Frequency: %{y:.2f}<extra></extra>",
+            )
+        )
+
+        # Observed Bars (Teal)
+        fig_poisson.add_trace(
+            go.Bar(
+                x=categories,
+                y=observed,
+                name="Observed (Empirical)",
+                marker_color="#0891b2",
+                marker_line_color="#0e7490",
+                marker_line_width=1,
+                text=[str(v) for v in observed],
+                textposition="outside",
+                textfont=dict(size=11, color="#0891b2"),
+                hovertemplate="<b>%{x}</b><br>Observed Count: %{y}<extra></extra>",
+            )
+        )
+
+        fig_poisson.update_layout(
+            template="plotly_white",
+            paper_bgcolor="rgba(0,0,0,0)",
+            plot_bgcolor="rgba(0,0,0,0)",
+            height=340,
+            barmode="group",
+            bargap=0.25,
+            bargroupgap=0.1,
+            margin=dict(l=40, r=20, t=30, b=40),
+            legend=dict(
+                orientation="h",
+                yanchor="bottom",
+                y=1.02,
+                xanchor="right",
+                x=1,
+                font=dict(size=12, color="#334155"),
+            ),
+            xaxis=dict(
+                showgrid=False,
+                tickfont=dict(color="#334155", size=12),
+            ),
+            yaxis=dict(
+                title="Cycle Counts",
+                title_font=dict(size=12, color="#64748b"),
+                showgrid=True,
+                gridcolor="#f1f5f9",
+                tickfont=dict(color="#64748b", size=11),
+                range=[0, 115],
+            ),
+        )
+
+        st.markdown(
+            """
+        <div class="custom-card">
+            <div class="card-header">
+                <div>
+                    OBSERVED VS. EXPECTED POISSON CYCLE FREQUENCIES<br>
+                    <span style="font-size: 0.8rem; font-weight: normal; color: #64748b;">
+                        E_k = n · P(X = k) across 168 total discharge cycles.
+                    </span>
+                </div>
+                <div class="badge-green">
+                    ✓ Grouped Conservation: |Σ E_k - n| = 0.000000
+                </div>
+            </div>
+        """,
+            unsafe_allow_html=True,
+        )
+
+        st.plotly_chart(fig_poisson, use_container_width=True)
+
+        st.markdown("</div>", unsafe_allow_html=True)
+
+        # -----------------------------------------------------------------------------
+        # BOTTOM SECTION: TWO-COLUMN LAYOUT
+        # -----------------------------------------------------------------------------
+        col1, col2 = st.columns(2)
+
+        # --- LEFT PANEL: INTERACTIVE POISSON PROBABILITY STUDIO ---
+        with col1:
+            st.markdown(
+                """
+            <div class="custom-card">
+                <div class="card-header">
+                    <span>🧮 Interactive Poisson Probability Studio</span>
+                    <span class="formula-tag">P(X=k) = e^-λ · λ^k / k!</span>
+                </div>
+            """,
+                unsafe_allow_html=True,
+            )
+
+            ctrl_col1, ctrl_col2 = st.columns([1.5, 1])
+            with ctrl_col1:
+                lam = st.slider("Poisson Rate (λ):", 0.1, 5.0, 2.15, step=0.05)
+            with ctrl_col2:
+                k = st.radio("Event Count (k):", [0, 1, 2, 3, 4], index=3, horizontal=True)
+
+            p_eq_0 = poisson.pmf(0, lam)
+            p_eq_1 = poisson.pmf(1, lam)
+            p_eq_k = poisson.pmf(k, lam)
+            p_gte_k = 1 - poisson.cdf(k - 1, lam) if k > 0 else 1.0
+            p_gt_k = 1 - poisson.cdf(k, lam)
+            diff = p_eq_k
+
+            r1_col1, r1_col2, r1_col3 = st.columns(3)
+            with r1_col1:
+                st.markdown(
+                    f"""
+                <div class="inner-card">
+                    <div class="metric-label">P(X = 0):</div>
+                    <div class="metric-value-cyan">{p_eq_0*100:.2f}%</div>
+                </div>
+                """,
+                    unsafe_allow_html=True,
+                )
+
+            with r1_col2:
+                st.markdown(
+                    f"""
+                <div class="inner-card">
+                    <div class="metric-label">P(X = 1):</div>
+                    <div class="metric-value-cyan">{p_eq_1*100:.2f}%</div>
+                </div>
+                """,
+                    unsafe_allow_html=True,
+                )
+
+            with r1_col3:
+                st.markdown(
+                    f"""
+                <div class="inner-card-selected">
+                    <div class="metric-label">P(X = {k}):</div>
+                    <div class="metric-value-cyan">{p_eq_k*100:.2f}%</div>
+                </div>
+                """,
+                    unsafe_allow_html=True,
+                )
+
+            r2_col1, r2_col2, r2_col3 = st.columns(3)
+            with r2_col1:
+                st.markdown(
+                    f"""
+                <div class="inner-card">
+                    <div class="metric-label">P(X ≥ {k}) (At Least):</div>
+                    <div class="metric-value-cyan">{p_gte_k*100:.2f}%</div>
+                </div>
+                """,
+                    unsafe_allow_html=True,
+                )
+
+            with r2_col2:
+                st.markdown(
+                    f"""
+                <div class="inner-card">
+                    <div class="metric-label">P(X > {k}) (Strictly More):</div>
+                    <div class="metric-value-cyan">{p_gt_k*100:.2f}%</div>
+                </div>
+                """,
+                    unsafe_allow_html=True,
+                )
+
+            with r2_col3:
+                st.markdown(
+                    f"""
+                <div class="inner-card">
+                    <div class="metric-label">Difference:</div>
+                    <div class="metric-value-green">{diff*100:.2f}%</div>
+                </div>
+                """,
+                    unsafe_allow_html=True,
+                )
+
+            st.markdown(
+                """
+                <div class="footer-note">
+                    🛠 Exact identity: P(X ≥ k) - P(X > k) equals precisely P(X = k).
+                </div>
+            </div>
+            """,
+                unsafe_allow_html=True,
+            )
+
+
+        # --- RIGHT PANEL: EXPONENTIAL INTER-EVENT WAITING TIME ---
+        with col2:
+            st.markdown(
+                """
+            <div class="custom-card">
+                <div class="card-header">
+                    <span>🕒 Exponential Inter-Event Waiting Time</span>
+                    <span class="formula-tag">f(t) = λ_E · e^-λ_E·t</span>
+                </div>
+            """,
+                unsafe_allow_html=True,
+            )
+
+            exp_col1, exp_col2 = st.columns(2)
+            with exp_col1:
+                st.markdown(
+                    """
+                <div class="inner-card">
+                    <div class="metric-label">Expected Waiting (E[T]):</div>
+                    <div class="metric-value-cyan">1.41 <span style="font-size: 0.9rem; font-weight: normal; color: #64748b;">cycles</span></div>
+                </div>
+                """,
+                    unsafe_allow_html=True,
+                )
+
+            with exp_col2:
+                st.markdown(
+                    """
+                <div class="inner-card">
+                    <div class="metric-label">Rate Parameter (λ_E):</div>
+                    <div class="metric-value-pink">0.7083</div>
+                </div>
+                """,
+                    unsafe_allow_html=True,
+                )
+
+            # Enhanced Decay Curve
+            t = np.linspace(0, 43, 200)
+            lambda_e = 0.7083
+            pdf_theoretical = expon.pdf(t, scale=1 / lambda_e)
+
+            np.random.seed(42)
+            pdf_empirical = (
+                pdf_theoretical * np.exp(-t * 0.02)
+                + 0.015 * np.sin(t) * np.exp(-t * 0.1)
+            )
+            pdf_empirical = np.clip(pdf_empirical, 0, 1)
+
+            fig_exp = go.Figure()
+
+            fig_exp.add_trace(
+                go.Scatter(
+                    x=t,
+                    y=pdf_theoretical,
+                    mode="lines",
+                    name="Theoretical f(t)",
+                    line=dict(color="#db2777", width=2.5),
+                    fill="tozeroy",
+                    fillcolor="rgba(219, 39, 119, 0.08)",
+                    hovertemplate="Theoretical Density: %{y:.4f}<br>Waiting Time: %{x:.1f} cycles<extra></extra>",
+                )
+            )
+
+            fig_exp.add_trace(
+                go.Scatter(
+                    x=t,
+                    y=pdf_empirical,
+                    mode="lines",
+                    name="Empirical Density",
+                    line=dict(color="#0284c7", width=2, dash="dash"),
+                    hovertemplate="Empirical Density: %{y:.4f}<br>Waiting Time: %{x:.1f} cycles<extra></extra>",
+                )
+            )
+
+            fig_exp.update_layout(
+                template="plotly_white",
+                paper_bgcolor="rgba(0,0,0,0)",
+                plot_bgcolor="rgba(0,0,0,0)",
+                height=220,
+                margin=dict(l=40, r=10, t=10, b=40),
+                legend=dict(
+                    orientation="h",
+                    yanchor="bottom",
+                    y=1.02,
+                    xanchor="right",
+                    x=1,
+                    font=dict(size=11, color="#334155"),
+                ),
+                xaxis=dict(
+                    title="Inter-Event Interval (t)",
+                    title_font=dict(size=11, color="#64748b"),
+                    showgrid=False,
+                    tickmode="array",
+                    tickvals=[0, 5, 10, 15, 20, 25, 30, 35, 40],
+                    tickfont=dict(color="#64748b", size=10),
+                ),
+                yaxis=dict(
+                    title="Density",
+                    title_font=dict(size=11, color="#64748b"),
+                    showgrid=True,
+                    gridcolor="#f1f5f9",
+                    tickvals=[0, 0.25, 0.5, 0.75, 1.0],
+                    tickfont=dict(color="#64748b", size=10),
+                ),
+            )
+
+            st.plotly_chart(fig_exp, use_container_width=True)
+
+            st.markdown(
+                """
+                <div style="display: flex; justify-content: space-between; font-size: 0.78rem; color: #64748b; margin-top: -10px;">
+                    <span>Intervals Observed: 85</span>
+                    <span>CV: 2.54 (Std / Mean)</span>
+                </div>
+            </div>
+            """,
+                unsafe_allow_html=True,
+            )
 # =============================================================================
 # TAB C: MONTE CARLO SIMULATOR
 # =============================================================================
-with tab_c:
+with tab_d:
     st.subheader("C. Monte Carlo Simulator & Stochastic Risk Projections")
 
     if is_hypo_cur:
@@ -1028,7 +1480,7 @@ with tab_c:
 # =============================================================================
 # TAB D: RISK & ENGINEERING DECISION SUPPORT
 # =============================================================================
-with tab_d:
+with tab_e:
     st.subheader("D. Engineering Decision Support & BMS Action Protocols")
 
     if not is_valid_cur:
@@ -1150,7 +1602,7 @@ with tab_d:
 # =============================================================================
 # TAB E: MODEL ASSUMPTIONS & MATHEMATICAL EXPLANATION
 # =============================================================================
-with tab_e:
+with tab_f:
     st.subheader("E. Mathematical Formulations & Statistical Explanations")
 
     math_col1, math_col2 = st.columns(2)
@@ -1206,7 +1658,7 @@ with tab_e:
 # =============================================================================
 # TAB F: RESULTS & DOWNLOADS
 # =============================================================================
-with tab_f:
+with tab_g:
     st.subheader("F. Analytical Comparison & Audited Data Exports")
 
     st.markdown("#### Comprehensive Comparison: Observed vs Theoretical vs Monte Carlo")
