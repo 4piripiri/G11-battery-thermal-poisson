@@ -1,61 +1,94 @@
-# EV Battery Thermal Events: Poisson and Exponential Models
+# ⚡ Battery Thermal Anomaly Risk Screening Dashboard
 
-**Course:** Statistical Methods and Probability, SY BTech | **IA-1:** STAT-AI Engineering Challenge
-**Group 11 | Topic 11:** Poisson and Exponential Models for Battery Events
+An applied statistical engineering dashboard built with **Streamlit**, **NumPy**, **SciPy**, **Pandas**, and **Plotly**. The application integrates empirical Lithium-ion battery telemetry (NASA Li-ion aging dataset), Poisson counting processes, Exponential waiting times, and Monte Carlo stochastic simulations to support explainable Battery Management System (BMS) risk decisions.
 
-## Problem
-How often do abnormal thermal events occur, and how long until the next one? We model
-event counts per week with a Poisson distribution and the waiting time between events
-with an exponential distribution, then use the result for a battery-management alert.
+---
 
-## Data
-- **Main dataset:** `data/B0005_thermal_events.csv` (group's own file): 50,285 temperature
-  readings over 168 battery discharge cycles; `thermal_event` = reading above 40 C.
-  Needs faculty approval as a source (see `docs/dataset_findings_B0005.md`).
-- Poisson variable: event readings per discharge cycle. Exponential variable: time from
-  start of discharge to the first event reading.
-- The app and CLI also accept daily NASA POWER files (`python -m src.fetch_data`).
-- What the data actually shows (dispersion, trend, fit tests): `docs/dataset_findings_B0005.md`
+## 🎯 Engineering & Statistical Problem Statement
 
-## Quick start
+In Battery Energy Storage Systems (BESS) and Electric Vehicles (EVs), thermal management systems monitor thermistors across hundreds of cells. A common statistical pitfall in battery telemetry is **autocorrelation / false alarms caused by naive counting**:
+- When a cell overheats during discharge, thermistors scan high temperatures repeatedly (e.g., every 18 seconds).
+- The supplied NASA B0005 dataset contains **1,206 flagged telemetry readings** (`thermal_event == 1`).
+- Naively treating every flagged reading as an independent event yields an arrival rate of $\frac{1,206}{146.0\text{ h}} = 8.26\text{ events/hour}$—an overestimation of over **1400%**.
+- In this application, an **episode** is correctly defined as a run of consecutive flagged readings within a discharge cycle, counted at its **initial onset** ($0 \to 1$ transition). This identifies **86 discrete thermal episodes**, yielding a statistically sound arrival rate of:
+  $$\hat{\lambda}_{\text{obs}} = \frac{86}{146.04\text{ hours}} = 0.589\text{ episodes/hour} \quad (\text{Exact 95% Poisson CI: } [0.471, 0.727]\text{/hr})$$
+
+---
+
+## 🚀 Quickstart & Setup Instructions
+
+### 1. Prerequisites
+- Python 3.10+ (tested on Python 3.10–3.14)
+- Pip package manager
+
+### 2. Installation
+Open PowerShell or your terminal in the project directory:
+
 ```bash
-python -m venv .venv && source .venv/bin/activate   # Windows: .venv\Scripts\activate
+cd c:\Users\Admin\Desktop\battery_thermal_sim
 pip install -r requirements.txt
-
-python -m src.run_analysis data/B0005_thermal_events.csv --threshold 40 --cycle-min 400 --k 10 --p 0.5
-streamlit run app.py                      # live demo for the showcase
-pytest                                    # checks code against the hand calculations
 ```
 
-## Demo flow (matches the IA requirement)
-`Input/Data -> Statistical Method -> Result -> Engineering/AI Decision`
+### 3. Running the Application
+Launch via Streamlit:
 
-## Repository layout
-| Path | Purpose |
-|------|---------|
-| `app.py` | Streamlit interactive demo |
-| `src/stats_core.py` | Poisson, exponential, chi-square, decision rule (plain `math`, easy to explain) |
-| `src/data_prep.py` | Weekly counts and event gaps from daily data |
-| `src/fetch_data.py` | NASA POWER download + metadata for the citation |
-| `src/run_analysis.py` | Command-line run that saves figures to `outputs/` |
-| `src/simulate_data.py` | Offline test data only (clearly marked SIMULATED) |
-| `tests/` | Unit tests that reproduce the hand-calculated example |
-| `docs/` | Worked example template, investigation sheet outline, viva prep |
+```bash
+python -m streamlit run app.py
+```
 
-## Team (fill in)
-| Member | Contribution |
-|--------|--------------|
-| 1 | Dataset and assumptions |
-| 2 | Hand calculations: Poisson |
-| 3 | Hand calculations: exponential |
-| 4 | Python verification (`src/`, `tests/`) |
-| 5 | Streamlit demo (`app.py`) |
-| 6 | Graphs, investigation sheet, references |
+The application will open in your browser at `http://localhost:8501`.
 
-## Limitations
-Event readings within a cycle are consecutive (not independent); the event rate grows with
-battery age; one cell only; the 40 C flag is chosen by the group.
+---
 
-## References
-Original source of B0005_thermal_events.csv: add after confirming with your faculty.
-Optional ambient-data alternative: NASA POWER Project, https://power.larc.nasa.gov/
+## 🏗️ Architecture & Core Modules
+
+The application is structured into modular Python components:
+
+| File | Purpose |
+| :--- | :--- |
+| [`app.py`](file:///c:/Users/Admin/Desktop/battery_thermal_sim/app.py) | Main interactive Streamlit application with 5 dedicated operational tabs, sidebar controls, dynamic badges, KPI cards, and CSV exports. |
+| [`core.py`](file:///c:/Users/Admin/Desktop/battery_thermal_sim/core.py) | Computational core with CSV validation, onset extraction, Garwood exact Poisson confidence intervals, cycle telemetry aggregations, and Monte Carlo generation. |
+| [`diagnostics.py`](file:///c:/Users/Admin/Desktop/battery_thermal_sim/diagnostics.py) | Plotly goodness-of-fit charts evaluating Poisson dispersion, Exponential gaps, operating history trends, and aging-induced non-stationarity. |
+| [`B0005_thermal_events.csv`](file:///c:/Users/Admin/Desktop/battery_thermal_sim/B0005_thermal_events.csv) | Bundled NASA Lithium-ion cell B0005 discharge cycling dataset (50,285 telemetry rows across 168 discharge cycles). |
+| [`requirements.txt`](file:///c:/Users/Admin/Desktop/battery_thermal_sim/requirements.txt) | Pinned application dependencies (`streamlit`, `numpy`, `scipy`, `pandas`, `plotly`). |
+
+---
+
+## 🔬 Model Diagnostics & Goodness-of-Fit
+
+The dashboard investigates the validity of Poisson and Exponential assumptions against real telemetry:
+
+1. **Cycle-Level Counts & Under-Dispersion:**
+   - In a theoretical Poisson process, the variance-to-mean dispersion index is $D = \frac{\text{Var}(N)}{\mu} = 1.0$.
+   - On the NASA dataset, observed per-cycle counts have mean $\mu = 0.512$ and variance $\sigma^2 = 0.251$, resulting in $D = 0.491$.
+   - **Reason:** Each discharge cycle has at most 1 episode onset near the end of discharge ($k=0: 82\text{ cycles}, k=1: 86\text{ cycles}, k \ge 2: 0\text{ cycles}$). The data behaves as a Bernoulli trial per cycle rather than an unconstrained Poisson variable.
+2. **Waiting Times & Violation of Memorylessness:**
+   - Observed inter-arrival gaps have mean $1.18\text{ h}$ and standard deviation $3.16\text{ h}$ (Coefficient of Variation $CV = \frac{\sigma}{\mu} = 2.68$).
+   - For a true Exponential distribution, $CV = 1.0$. Gaps cluster heavily near ~0.85 hours in late life, while remaining very long in early life.
+3. **Severe Non-Stationarity (Aging-Induced Rate Escalation):**
+   - Early cycles (1–50) exhibit an anomaly rate of only **2%**.
+   - Middle cycles (50–100) exhibit a rate of **34%**.
+   - Late cycles (100–168) exhibit a rate of **100%** (anomalies occur in every single cycle).
+   - This proves that $\lambda(t)$ is not constant over battery lifetime. Stationary Poisson modeling provides an aggregate screening baseline, but must be paired with cycle-life tracking in real BMS deployments.
+4. **Timeline Limitations:**
+   - Active discharge cycles are stitched end-to-end, omitting charge protocols and open-circuit rest periods.
+   - Cycle durations decrease from 3,690 seconds (1.02 h) to 2,792 seconds (0.78 h) as capacity fades.
+
+---
+
+## 🛡️ Engineering Decision Matrix
+
+| Risk Classification | Decision Criteria ($P(N \ge k_{\text{crit}})$) | Recommended BMS Operational Protocol |
+| :--- | :--- | :--- |
+| 🟢 **LOW RISK** | $P < P_{\text{warn}}$ (e.g. $< 15\%$) | Standard nominal operation. Standard telemetry logging (0.1 Hz) and passive or baseline coolant flow loop active. |
+| 🟡 **MODERATE RISK** | $P_{\text{warn}} \le P < P_{\text{high}}$ (e.g. $15\% - 40\%$) | Increase thermistor & cell voltage telemetry to 1 Hz. Pre-condition active liquid cooling circuit. Schedule module for automated internal resistance / EIS check at next cycle turnaround. |
+| 🔴 **HIGH RISK** | $P \ge P_{\text{high}}$ (e.g. $\ge 40\%$) | **Immediate power curtailment:** Derate maximum charge/discharge C-rate by 50–70%. Command active chiller pump to maximum flow (100% duty cycle). Switch telemetry to high-speed transient logging (50–100 ms). Flag module for physical teardown if rate persists. |
+
+---
+
+## ⚠️ Important Engineering Screening Disclaimer
+
+> **Statistical Screening Model Notice:**  
+> This application implements a statistical screening model based on Poisson counting processes and Exponential waiting times.  
+> **It is NOT a validated multi-physics battery safety or thermal runaway simulator.**  
+> It does **not** solve 3D convective/conductive heat transfer (CFD), electrochemical heat generation ($q = I(V_{\text{oc}} - V) - I T \frac{\partial U}{\partial T}$), Arrhenius-type exothermic decomposition of the Solid Electrolyte Interphase (SEI), or cascading cell-to-cell thermal propagation. Physical battery qualification mandates multi-physics CAE models and standardized hardware qualification testing (e.g., UL 9540A, UN 38.3, SAE J2464).
